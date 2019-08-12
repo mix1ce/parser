@@ -1,39 +1,55 @@
 import requests
 import re
 from bs4 import BeautifulSoup
+from multiprocessing import Pool
 
-sites = ['https://hands.ru/company/about', 'https://repetitors.info/']
+
+def get_html(url):
+    r = requests.get(url)
+    return r.text
 
 
-def parser (site):
-    mas = []
-    response = requests.get(site)
-    root = BeautifulSoup(response.text, 'html.parser')
+def get_numbers(html):
+    soup = BeautifulSoup(html, 'lxml')
 
-    text = root.find('div')
+    numbers = []
+
+    text = soup.find('div')
     text = ' '.join(text.findAllNext(text=True))
 
     number = re.findall(r'(((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?([\d\-]{7,9}))', text)
-    form = re.compile(r'\D+')
+    format_ = re.compile(r'\D+')
 
     for elem in number:
         elem = str(elem[0])
-        format_number = form.sub('', elem)
+        format_number = format_.sub('', elem)
 
         if format_number != '':
             if len(format_number) == 7:
-                mas.append('8495' + format_number)
+                numbers.append('8495' + format_number)
             elif len(format_number) == 10:
-                mas.append('8' + format_number)
+                numbers.append('8' + format_number)
             elif len(format_number) == 11:
                 if format_number[0] == '8':
-                    mas.append(format_number)
+                    numbers.append(format_number)
                 elif format_number[0] == '7':
-                    mas.append('8' + format_number[1:])
+                    numbers.append('8' + format_number[1:])
+    return numbers
 
-    print(mas)
+
+def make_all(url):
+    html = get_html(url)
+    numbers = get_numbers(html)
+    print(numbers)
+    return numbers
+
+
+def main():
+    sites = ['https://hands.ru/company/about', 'https://repetitors.info/']
+
+    with Pool(40) as p:
+        p.map(make_all, sites)
 
 
 if __name__ == '__main__':
-    for site in sites:
-        parser(site)
+    main()
